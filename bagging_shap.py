@@ -57,11 +57,12 @@ def xgboost_preprocessing(train_dataset, colors_trainset, test_dataset, colors_t
     entire_data_outliers = torch.tensor(entire_data_outliers.values).float()
     entire_colors_outliers = entire_colors_outliers.to_numpy().reshape(len(entire_colors_outliers))
 
-    x_train, x_test, y_train, y_test = train_test_split(entire_data_outliers, entire_colors_outliers,
-                                                        test_size=0.3,
-                                                        random_state=1)
+    #x_train, x_test, y_train, y_test = train_test_split(entire_data_outliers, entire_colors_outliers,
+                                                        #test_size=0.3,
+                                                        #random_state=1)
 
-    return x_train, x_test, y_train, y_test
+    return entire_data_outliers, entire_colors_outliers
+	#return x_train, x_test, y_train, y_test
 
 
 def get_embeddings(model, dataloader, device):
@@ -74,10 +75,10 @@ def get_embeddings(model, dataloader, device):
         for data in dataloader:
             data = data.to(device)
             reconstruction, mean, logvar, coded = model(data)
-            rec_model = np.concatenate((rec_model, reconstruction), axis=0)
-            mean_model = np.concatenate((mean_model, mean), axis=0)
-            logvar_model = np.concatenate((logvar_model, logvar), axis=0)
-            embedding_model = np.concatenate((embedding_model, coded), axis=0)
+            rec_model = np.concatenate((rec_model, reconstruction.to('cpu')), axis=0)
+            mean_model = np.concatenate((mean_model, mean.to('cpu')), axis=0)
+            logvar_model = np.concatenate((logvar_model, logvar.to('cpu')), axis=0)
+            embedding_model = np.concatenate((embedding_model, coded.to('cpu')), axis=0)
 
     return rec_model, embedding_model, mean_model, logvar_model
 
@@ -125,21 +126,22 @@ def xgboost_shap(model, train_loader_beta, colors_coded_train,
     return indices_beta
 
 
-def shap_vae(model, examples, shap_indices):
+def shap_vae(model, examples, shap_indices, device):
 
     background = examples[:150]
     test_shap = examples[150:]
 
-    net = model.encoder
+    net = model.encoder.to(device)
     dl = DeepLiftShap(net, True)
     genes = []
     for ind in shap_indices:
-        attribution = dl.attribute(test_shap, baselines=background, target=int(ind))
-        np_attribution = attribution.detach().numpy()
-        for element in range(len(np_attribution.mean(0))):
-            if np_attribution.mean(0)[element] > np_attribution.mean(0).mean() + np_attribution.mean(0).std() * 3:
+        attribution = dl.attribute(test_shap.to(device), baselines=background.to(device), target=int(ind))
+        attribution = attribution.detach()
+        attribution_mean_tensor = torch.mean(attribution, dim=0)
+        for element in range(len(attribution_mean_tensor)):
+            if attribution_mean_tensor[element] > torch.mean(attribution_mean_tensor) + torch.std(attribution_mean_tensor) * 3:
                 genes.append(element)
-            if np_attribution.mean(0)[element] < np_attribution.mean(0).mean() - np_attribution.mean(0).std() * 3:
+            if attribution_mean_tensor[element] < torch.mean(attribution_mean_tensor) - torch.std(attribution_mean_tensor) * 3:
                 genes.append(element)
 
     return genes
@@ -228,6 +230,9 @@ if __name__ == '__main__':
 
     colors_train, colors_test = general.colors_preprocessing(args.colors_train, args.colors_test)
 
+    total_data, total_colors = xgboost_preprocessing(train_data, colors_train, test_data, colors_test)
+
+
     shap_aux_list = []
     shap_aux_list_sets = []
     for iteration in range(ch_iterations):
@@ -245,6 +250,7 @@ if __name__ == '__main__':
                                                                                          option=args.loss,
                                                                                          learning_rate=lr)
 
+
         if args.plots == "1":
             general.loss_plots(tr_l, tt_l, tr_kl, tt_kl, tr_r, tt_r, id_string)
 
@@ -252,10 +258,10 @@ if __name__ == '__main__':
 
         # The train-test split is random. As we will perform the pipeline several times, I prefer
         # split it everytime
-        xgboost_train, xgboost_test, xgboost_train_colors, xgboost_test_colors = xgboost_preprocessing(train_data,
-                                                                                                       colors_train,
-                                                                                                       test_data,
-                                                                                                       colors_test)
+       	xgboost_train, xgboost_test, xgboost_train_colors, xgboost_test_colors = train_test_split(total_data, total_colors,
+                                                        				test_size=0.3,
+                                                        				random_state=1)
+
 
         # We create a dataset to work with SHAP that it's all the dataset without outliers
         SHAP_dataset = torch.cat((xgboost_train, xgboost_test))
@@ -282,16 +288,19 @@ if __name__ == '__main__':
         # SHAP Pipeline
 
         # We get a entire batch of the shap_dataloader, i.e., 256 genomic profiles
-        profiles = next(iter(shap_dataloader))
-
-        indices = xgboost_shap(chosen_model, xgboost_train_dataloader, xgboost_train_colors,
+       	profiles = next(iter(shap_dataloader))
+	
+	
+       	indices = xgboost_shap(chosen_model, xgboost_train_dataloader, xgboost_train_colors,
                                xgboost_test_dataloader, xgboost_test_colors, ch_latent_variables, dev)
 
-        focus_genes = shap_vae(chosen_model, profiles, indices)
+       	focus_genes = shap_vae(chosen_model, profiles, indices, dev)
 
         shap_aux_list.append(focus_genes)
         shap_aux_list_sets.append(set(focus_genes))
 
+	 
+ 
     shap_df = aux_counter(shap_aux_list, genes_name, len(train_data[0]))
     shap_df_sets = aux_counter(shap_aux_list_sets, genes_name, len(train_data[0]))
 

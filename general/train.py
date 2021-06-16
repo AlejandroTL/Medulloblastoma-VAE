@@ -89,6 +89,7 @@ def cyclical_training(model, loader_train, loader_test, epochs=110, cycles=3, in
 
     # Setup
     optimizer, criterion, device = setup(model, learning_rate, option)
+    model = model.to(device)
 
     # Training cycles
     for cycle in range(cycles):
@@ -131,8 +132,8 @@ def cyclical_training(model, loader_train, loader_test, epochs=110, cycles=3, in
 
     # Save the model trained
 
-    path = f'trained_models/model{dt_string}.pth'
-    torch.save(model.state_dict(), path)
+    #path = f'trained_models/model{dt_string}.pth'
+   # torch.save(model.state_dict(), path)
 
     return train_loss, test_loss, kl_loss_train, kl_loss_test, rec_loss_train, rec_loss_test, dt_string, device
 
