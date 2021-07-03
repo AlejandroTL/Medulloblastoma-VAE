@@ -12,7 +12,6 @@ import xgboost
 from collections import Counter
 from datetime import datetime
 
-
 def aux_counter(lista, names, dim):
     total_list = []
 
@@ -57,12 +56,12 @@ def xgboost_preprocessing(train_dataset, colors_trainset, test_dataset, colors_t
     entire_data_outliers = torch.tensor(entire_data_outliers.values).float()
     entire_colors_outliers = entire_colors_outliers.to_numpy().reshape(len(entire_colors_outliers))
 
-    #x_train, x_test, y_train, y_test = train_test_split(entire_data_outliers, entire_colors_outliers,
-                                                        #test_size=0.3,
-                                                        #random_state=1)
+    # x_train, x_test, y_train, y_test = train_test_split(entire_data_outliers, entire_colors_outliers,
+    #                                                      test_size=0.3,
+    #                                                      random_state=1)
 
     return entire_data_outliers, entire_colors_outliers
-	#return x_train, x_test, y_train, y_test
+    # return x_train, x_test, y_train, y_test
 
 
 def get_embeddings(model, dataloader, device):
@@ -232,9 +231,9 @@ if __name__ == '__main__':
 
     total_data, total_colors = xgboost_preprocessing(train_data, colors_train, test_data, colors_test)
 
-
     shap_aux_list = []
     shap_aux_list_sets = []
+
     for iteration in range(ch_iterations):
         # Chosen model with dimensions
         chosen_model = general.VAE(input_dim=len(train_data[0]), mid_dim=mid_dim, features=features)
@@ -258,10 +257,10 @@ if __name__ == '__main__':
 
         # The train-test split is random. As we will perform the pipeline several times, I prefer
         # split it everytime
-       	xgboost_train, xgboost_test, xgboost_train_colors, xgboost_test_colors = train_test_split(total_data, total_colors,
-                                                        				test_size=0.3,
-                                                        				random_state=1)
-
+        xgboost_train, xgboost_test, xgboost_train_colors, xgboost_test_colors = train_test_split(total_data,
+                                                                                                  total_colors,
+                                                                                                  test_size=0.3,
+                                                                                                  random_state=1)
 
         # We create a dataset to work with SHAP that it's all the dataset without outliers
         SHAP_dataset = torch.cat((xgboost_train, xgboost_test))
@@ -280,7 +279,7 @@ if __name__ == '__main__':
         )
 
         shap_dataloader = torch.utils.data.DataLoader(  # Dataloader for SHAP computations. Batch size higher!
-            xgboost_train,
+            SHAP_dataset,
             batch_size=256,
             shuffle=True,
         )
@@ -288,19 +287,16 @@ if __name__ == '__main__':
         # SHAP Pipeline
 
         # We get a entire batch of the shap_dataloader, i.e., 256 genomic profiles
-       	profiles = next(iter(shap_dataloader))
-	
-	
-       	indices = xgboost_shap(chosen_model, xgboost_train_dataloader, xgboost_train_colors,
+        profiles = next(iter(shap_dataloader))
+
+        indices = xgboost_shap(chosen_model, xgboost_train_dataloader, xgboost_train_colors,
                                xgboost_test_dataloader, xgboost_test_colors, ch_latent_variables, dev)
 
-       	focus_genes = shap_vae(chosen_model, profiles, indices, dev)
+        focus_genes = shap_vae(chosen_model, profiles, indices, dev)
 
         shap_aux_list.append(focus_genes)
         shap_aux_list_sets.append(set(focus_genes))
 
-	 
- 
     shap_df = aux_counter(shap_aux_list, genes_name, len(train_data[0]))
     shap_df_sets = aux_counter(shap_aux_list_sets, genes_name, len(train_data[0]))
 
