@@ -101,7 +101,7 @@ def cyclical_training(model, loader_train, loader_test, epochs=110, cycles=3, in
             if epoch < width:
                 beta_launcher = 0
             else:
-                beta_slope = 0.0025 * (epoch - width) * (epoch - width)
+                beta_slope = (1/400) * (epoch - width) * (epoch - width)
                 beta_launcher = min(beta, beta_slope)
 
             train_epoch_loss, kl_train_loss, rec_train_loss = fit(model, loader_train, beta_launcher,
@@ -132,8 +132,8 @@ def cyclical_training(model, loader_train, loader_test, epochs=110, cycles=3, in
 
     # Save the model trained
 
-    #path = f'trained_models/model{dt_string}.pth'
-   # torch.save(model.state_dict(), path)
+    # path = f'trained_models/model{dt_string}.pth'
+    # torch.save(model.state_dict(), path)
 
     return train_loss, test_loss, kl_loss_train, kl_loss_test, rec_loss_train, rec_loss_test, dt_string, device
 
@@ -208,4 +208,3 @@ def loss_plots(train_loss, test_loss, kl_loss_train, kl_loss_test, rec_loss_trai
     plt.ylabel('Loss')
     plt.plot(kl_loss_train, kl_loss_test)
     h.savefig(f"TrainingReports/KL_Train_VS_Test_{dt_string}.png")
-
