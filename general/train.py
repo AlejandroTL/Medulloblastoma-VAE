@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # Setup Learning Rate, optimizer, criterion... of the model
@@ -187,24 +188,26 @@ def data2tensor(train_path, test_path, batch_size):
 
 
 def loss_plots(train_loss, test_loss, kl_loss_train, kl_loss_test, rec_loss_train, rec_loss_test, dt_string):
-
     f = plt.figure(1)
     plt.title('Train Loss vs Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.plot(train_loss, test_loss)
-    f.savefig(f"TrainingReports/Train_VS_Test_{dt_string}.png")
+    plt.plot(np.linspace(1, len(train_loss), len(train_loss)), train_loss)
+    plt.plot(np.linspace(1, len(test_loss), len(test_loss)), test_loss)
+    f.savefig(f"TrainingReports/Plots/Train_VS_Test_{dt_string}.png")
 
     g = plt.figure(2)
     plt.title('Rec Train Loss vs Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.plot(rec_loss_train, rec_loss_test)
-    g.savefig(f"TrainingReports/Rec_Train_VS_Test_{dt_string}.png")
+    plt.plot(np.linspace(1, len(rec_loss_train), len(rec_loss_train)), rec_loss_train)
+    plt.plot(np.linspace(1, len(rec_loss_test), len(rec_loss_test)), rec_loss_test)
+    g.savefig(f"TrainingReports/Plots/Rec_Train_VS_Test_{dt_string}.png")
 
     h = plt.figure(3)
     plt.title('KL Train Loss vs Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.plot(kl_loss_train, kl_loss_test)
-    h.savefig(f"TrainingReports/KL_Train_VS_Test_{dt_string}.png")
+    plt.plot(np.linspace(1, len(kl_loss_train), len(kl_loss_train)), kl_loss_train)
+    plt.plot(np.linspace(1, len(kl_loss_test), len(kl_loss_test)), kl_loss_test)
+    h.savefig(f"TrainingReports/Plots/KL_Train_VS_Test_{dt_string}.png")
